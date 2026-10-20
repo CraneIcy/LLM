@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上传文档到 AnythingLLM</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%230E7C73"/><path d="M11 9h6l4 4v10a1 1 0 0 1-1 1H11a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1z" fill="none" stroke="%23fff" stroke-width="2" stroke-linejoin="round"/><path d="M16 13v6m0 0-2-2m2 2 2-2" fill="none" stroke="%23fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#EDF1EF; --surface:#FFFFFF; --line:#DDE4E1; --line-strong:#C9D4D0;
+  --ink:#16241F; --muted:#5E6E68;
+  --accent:#0E7C73; --accent-hover:#0A615A; --accent-soft:#E3F2F0;
+  --ok:#2E7D57; --err:#C4443A;
+  --radius:12px;
+  --mono:ui-monospace,"Cascadia Code",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Noto Sans SC",system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.6;
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  padding:40px 16px;
+}
+.wrap{width:100%; max-width:600px; display:flex; flex-direction:column; gap:18px}
+/* 头部 */
+header{display:flex; align-items:flex-start; gap:14px}
+.logo{
+  width:44px;height:44px;border-radius:10px;background:var(--accent);
+  display:flex;align-items:center;justify-content:center;flex:none;margin-top:2px;
+}
+.logo svg{width:26px;height:26px}
+h1{font-size:22px;font-weight:700;margin:0;letter-spacing:-.01em}
+.sub{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+/* 工作区 */
+.ws{
+  display:flex;align-items:center;gap:8px;
+  font-size:13px;color:var(--muted);
+}
+.ws .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.ws strong{color:var(--ink);font-weight:500;word-break:break-all}
+/* 上传卡 */
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:22px;
+}
+.zone{
+  border:1.5px dashed var(--line-strong);border-radius:10px;
+  padding:26px 16px;text-align:center;color:var(--muted);
+  transition:border-color .15s ease,background .15s ease;
+}
+.zone.drag{border-color:var(--accent);background:var(--accent-soft)}
+.zone .fic{display:flex;justify-content:center;margin-bottom:8px}
+.zone .fic svg{width:30px;height:30px;stroke:var(--line-strong)}
+.zone .fname{display:none;font-size:13.5px;color:var(--ink);word-break:break-all;margin-top:2px}
+.zone .fname.show{display:block}
+input[type=file]{display:none}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:16px;width:100%;padding:11px 16px;
+  background:var(--accent);color:#fff;border:none;border-radius:9px;
+  font:inherit;font-weight:500;cursor:pointer;
+  transition:background .15s ease,transform .05s ease;
+}
+.btn:hover{background:var(--accent-hover)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{background:var(--line-strong);cursor:not-allowed}
+.btn svg{width:16px;height:16px}
+.spinner{
+  width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;
+  animation:spin .7s linear infinite;display:none;
+}
+.btn.busy .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* 结果 */
+.result{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px 20px;display:none;
+}
+.result.show{display:block}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12.5px;font-weight:500;padding:3px 10px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent);
+}
+.chip.ok{background:#E4F2EA;color:var(--ok)}
+.chip.err{background:#FBE9E7;color:var(--err)}
+.chip.busy{background:var(--accent-soft);color:var(--accent)}
+pre{
+  margin:12px 0 0;padding:12px 14px;background:#F5F8F7;border:1px solid var(--line);
+  border-radius:8px;font-family:var(--mono);font-size:12px;line-height:1.55;
+  white-space:pre-wrap;word-break:break-all;max-height:320px;overflow:auto;
+}
+footer{text-align:center;color:var(--muted);font-size:12px;font-family:var(--mono)}
+@media (max-width:480px){
+  body{padding:24px 12px}
+  .card{padding:16px}
+  h1{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+a:focus-visible,.btn:focus-visible,.zone:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M9 7h9l5 5v13a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M17 7v5h5M13 17h7M13 21h7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div>
+      <h1>上传文档到 AnythingLLM</h1>
+      <p class="sub">文件上传后将自动解析并向量化，嵌入第一个工作区</p>
+    </div>
+  </header>
+
+  <div class="ws"><span class="dot"></span>目标工作区：<strong id="ws">加载中…</strong></div>
+
+  <section class="card">
+    <div class="zone" id="zone">
+      <div class="fic"><svg viewBox="0 0 32 32" fill="none"><path d="M16 20V8m0 0-5 5m5-5 5 5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 20v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div>拖入文件，或</div>
+      <label class="btn" style="margin-top:12px;width:auto;padding:8px 22px" for="file">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        选择文件
+      </label>
+      <input type="file" id="file">
+      <div class="fname" id="fname"></div>
+    </div>
+    <button class="btn" id="btn" disabled>
+      <span class="spinner"></span>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0-4 4m4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      上传并向量化
+    </button>
+  </section>
+
+  <section class="result" id="result">
+    <span class="chip" id="chip">就绪</span>
+    <pre id="body"></pre>
+  </section>
+
+  <footer>POST /v1/document/upload · localhost:3001</footer>
+</div>
+
+<script>
+const API = "http://localhost:3001/api/v1";
+const KEY = "E03R6WR-XGF41TH-KR2304E-ESAAC9X";
+let slug = "", file = null;
+const $ = id => document.getElementById(id);
+const zone = $("zone"), btn = $("btn"), chip = $("chip"), res = $("result"), body = $("body");
+
+function setChip(label, state){
+  chip.textContent = label;
+  chip.className = "chip" + (state ? " " + state : "");
+}
+function showResult(state, label, text){
+  setChip(label, state);
+  body.textContent = text;
+  res.classList.add("show");
+}
+
+async function init(){
+  try{
+    const r = await fetch(API + "/workspaces", { headers: { Authorization: "Bearer " + KEY } });
+    const d = await r.json();
+    if(!d.workspaces || !d.workspaces.length){ $("ws").textContent = "无工作区，请先在 AnythingLLM 创建"; return; }
+    const ws = d.workspaces[0];
+    slug = ws.slug;
+    $("ws").textContent = ws.name + " (" + slug + ")";
+  }catch(e){ $("ws").textContent = "加载失败：" + e.message; }
+}
+
+function setFile(f){
+  file = f;
+  const fn = $("fname");
+  if(f){ fn.textContent = f.name + "（" + (f.size/1024).toFixed(1) + " KB）"; fn.classList.add("show"); btn.disabled = false; }
+  else { fn.textContent = ""; fn.classList.remove("show"); btn.disabled = true; }
+}
+$("file").addEventListener("change", e => setFile(e.target.files[0] || null));
+["dragover","dragleave"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.toggle("drag", ev === "dragover"); }));
+zone.addEventListener("drop", e => {
+  e.preventDefault(); zone.classList.remove("drag");
+  if(e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+
+btn.addEventListener("click", async () => {
+  if(!file || !slug) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("addToWorkspaces", slug);
+  btn.disabled = true; btn.classList.add("busy");
+  showResult("busy", "上传中", "正在上传并向量化，请稍候…");
+  try{
+    const r = await fetch(API + "/document/upload", { method: "POST", headers: { Authorization: "Bearer " + KEY }, body: fd });
+    const d = await r.json();
+    const ok = r.ok && d.success;
+    showResult(ok ? "ok" : "err", ok ? "成功" : "失败", "HTTP " + r.status + "\n" + JSON.stringify(d, null, 2));
+  }catch(e){
+    showResult("err", "失败", "请求失败：" + e.message);
+  }finally{
+    btn.disabled = !file; btn.classList.remove("busy");
+  }
+});
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+flowchart TD
+    A[启动程序] --> B[读取 .config.ini 配置]
+    B --> C[定义 tools 列表<br/>12个工具的JSON Schema]
+    C --> D[定义工具函数实现]
+
+    subgraph D [工具函数层]
+        D1[getDate<br/>调用本地date命令]
+        D2[isLeapYear<br/>Python闰年计算]
+        D3[getCwd<br/>os.getcwd]
+        D4[listDir<br/>os.listdir]
+        D5[getFileType<br/>os.path判断类型]
+        D6[readFile<br/>open读取文件]
+        D7[createFile<br/>创建文件]
+        D8[writeFile<br/>写入文件]
+        D9[makeDir<br/>os.makedirs]
+        D10[removeDir<br/>shutil.rmtree]
+        D11[removeFile<br/>os.remove]
+        D12[rename<br/>os.rename]
+    end
+
+    D --> E[外层主循环<br/>while True]
+    E --> F[input 读取用户输入]
+    F --> G[追加 user 消息到 messages]
+
+    G --> H[内层工具循环<br/>while True]
+    H --> I[POST /chat/completions<br/>stream=True + tools]
+    I --> J[流式读取 SSE 响应]
+    J --> K{累积内容 & tool_calls}
+    K --> L{是否有 tool_calls?}
+
+    L -- 否 --> M[保存 assistant 消息]
+    M --> N[跳出内层循环]
+    N --> E
+
+    L -- 是 --> O[追加 assistant 消息<br/>含 tool_calls]
+    O --> P{根据 tool name 分发}
+
+    P --> Q[执行对应工具函数]
+    Q --> R[结果追加为 tool 消息]
+    R --> H
+
+    style A fill:#4CAF50,color:#fff
+    style N fill:#FF9800,color:#fff
+    style Q fill:#2196F3,color:#fff

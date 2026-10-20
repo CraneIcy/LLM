@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>上传文档到 AnythingLLM</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+h2 { margin-bottom: 8px; }
+#ws { color: #333; }
+.row { margin: 16px 0; }
+button { padding: 8px 20px; cursor: pointer; }
+#result { white-space: pre-wrap; word-break: break-all; background: #f5f5f5; padding: 12px; border-radius: 6px; margin-top: 16px; font-size: 13px; min-height: 40px; }
+</style>
+</head>
+<body>
+<h2>上传文档到 AnythingLLM</h2>
+<p>目标工作区（自动取第一个）：<strong id="ws">加载中...</strong></p>
+<div class="row"><input type="file" id="file"></div>
+<div class="row"><button id="btn">上传并向量化</button></div>
+<div id="result">状态：待上传</div>
+<script>
+const API = "http://localhost:3001/api/v1";
+const KEY = "E03R6WR-XGF41TH-KR2304E-ESAAC9X";
+let slug = "";
+async function init() {
+  try {
+    const r = await fetch(API + "/workspaces", { headers: { Authorization: "Bearer " + KEY } });
+    const d = await r.json();
+    if (!d.workspaces || !d.workspaces.length) { document.getElementById("ws").textContent = "无工作区，请先创建"; return; }
+    const ws = d.workspaces[0];
+    slug = ws.slug;
+    document.getElementById("ws").textContent = ws.name + " (" + slug + ")";
+  } catch (e) { document.getElementById("ws").textContent = "加载失败：" + e.message; }
+}
+document.getElementById("btn").onclick = async () => {
+  const f = document.getElementById("file").files[0];
+  if (!f) return alert("请先选择文件");
+  if (!slug) return alert("工作区未就绪");
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("addToWorkspaces", slug);
+  const res = document.getElementById("result");
+  res.textContent = "上传中...";
+  try {
+    const r = await fetch(API + "/document/upload", { method: "POST", headers: { Authorization: "Bearer " + KEY }, body: fd });
+    const d = await r.json();
+    res.textContent = "HTTP " + r.status + "\n" + JSON.stringify(d, null, 2);
+  } catch (e) { res.textContent = "请求失败：" + e.message; }
+};
+init();
+</script>
+</body>
+</html>
