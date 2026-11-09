@@ -1,13 +1,18 @@
-# 大语言模型技术与应用 · 期末项目
+# 动物诊疗机构合规自查 Agent · 大语言模型技术与应用期末项目
 
-本仓库是《大语言模型技术与应用》课程终结性项目，围绕「让本地业务系统与大模型能力真正对接」这一条主线，完成四个相互独立、又能串联运行的部分：
+本仓库只做一个场景的 Agent：**帮助动物诊疗机构做合规自查**。
+机构在迎检、质控、年度报告时会遇到同一类麻烦——病历、处方、公示、报告义务散落在业务系统和一堆法规文件里，人工比对又慢又容易漏。这个 Agent 把两边接起来：从业务系统取真实病历与收费记录，从知识库取法规条文，逐条比对后给出带条款出处的问题清单。
 
-| 编号 | 模块 | 目录 | 技术栈 | 作用 |
+依据文本：《中华人民共和国动物防疫法》第七章「动物诊疗」（第六十一至六十三条）、《动物诊疗机构管理办法》（农业农村部令 2022 年第 5 号，2022 年 10 月 1 日施行）。
+
+为了这一个场景，仓库包含四块相互衔接的部件：
+
+| 编号 | 部件 | 目录 | 技术栈 | 在本场景中的职责 |
 |---|---|---|---|---|
-| A | 宠物医院 MCP Server | `PetHospitalMCP/pet-hospital-mcp` | Python 3.11 + mcp 2.x SDK | 把 Go 版宠物医院 REST API 封装成符合 MCP 协议的工具 |
-| B | AnythingLLM MCP Server | `new-chat-1` | Python + mcp 2.x SDK + httpx | 把 AnythingLLM 的工作区、文档、问答能力封装成 MCP 工具 |
-| C | AnythingLLM 文档上传网页 | `AnythingLLMSever` | 原生 HTML/CSS/JS | 面向非技术用户的文档上传与向量化界面 |
-| D | 定制 Agent | `Agent/CAgent` | Python + DeepSeek/OpenAI 兼容接口 | 带工具、技能、MCP 接入、上下文管理的完整 Agent |
+| A | 宠物医院 MCP Server | `PetHospitalMCP/pet-hospital-mcp` | Python 3.11 + mcp 2.x SDK | 把 Go 版诊疗机构 REST API 封装成 MCP 工具：查档案、查病历并做字段自查 |
+| B | AnythingLLM MCP Server | `new-chat-1` | Python + mcp 2.x SDK + httpx | 把法规知识库（工作区/文档/检索问答）封装成 MCP 工具，供 Agent 引条文 |
+| C | AnythingLLM 文档上传网页 | `AnythingLLMSever` | 原生 HTML/CSS/JS | 让机构把新规、检查表、模板自己传进知识库 |
+| D | 定制 Agent | `Agent/CAgent` | Python + DeepSeek/OpenAI 兼容接口 | 编排上面三类能力，按自查清单出结论 |
 
 另外 `Agent/Practice01`、`Agent/Practice2` 是课程过程性练习，`PetHospitalMCP` 根目录是 Go 后端源码。
 
@@ -23,13 +28,13 @@ LLM/
 │       │   │                   #        / mcp_client / context_manager / session_manager
 │       │   └── tools/          # 14 个本地工具 + MCP 工具适配器
 │       ├── ui/                 # 界面层：tui（Textual）/ gui（桌面窗口）/ cli
-│       ├── .agents/skills/     # 技能目录（3 个示例技能 + 说明）
-│       ├── AGENTS.md           # 项目长期规则（启动时一次注入）
+│       ├── .agents/skills/     # 技能目录（含 clinic-compliance 合规自查等 4 个技能）
+│       ├── AGENTS.md           # 项目长期规则（启动时一次注入，含业务边界与条款引用规则）
 │       └── main.py             # 入口：python main.py（默认 GUI，--tui 切终端）
 ├── PetHospitalMCP/
 │   ├── main.go                 # Go 后端入口（29 个 REST 接口，网页内嵌进二进制）
 │   ├── internal/api|model|store# 路由、模型、单文件存储引擎
-│   └── pet-hospital-mcp/       # Python MCP Server（list_pets 工具）
+│   └── pet-hospital-mcp/       # Python MCP Server（list_pets / get_pet_records 两个工具）
 ├── AnythingLLMSever/
 │   └── 上传文档到AnythingLLM.html   # 文档上传网页（密钥存本机 localStorage）
 ├── new-chat-1/                 # AnythingLLM MCP Server（4 个工具）
@@ -104,13 +109,14 @@ python main.py                      # 默认桌面界面；python main.py --tui 
 |---|---|---|
 | Go 后端存活 | `curl http://127.0.0.1:8080/health` | 返回 `status: ok` |
 | A：MCP 健康检查 | `curl http://127.0.0.1:8000/health` | 返回 `transport: streamable-http`、`upstream: ok` |
-| A：工具可枚举 | `POST http://127.0.0.1:8000/mcp`，`tools/list` | 返回 `list_pets` 及其参数 Schema |
-| A：单元测试 | `cd PetHospitalMCP/pet-hospital-mcp && pytest -v` | 全部通过（使用 MockTransport，无需真实后端） |
+| A：工具可枚举 | `POST http://127.0.0.1:8000/mcp`，`tools/list` | 返回 `list_pets` 与 `get_pet_records` 及其参数 Schema |
+| A：单元测试 | `cd PetHospitalMCP/pet-hospital-mcp && pytest -v` | 66 项全部通过（使用 MockTransport，无需真实后端） |
 | B：工具可枚举 | 客户端连 `http://127.0.0.1:8765/mcp`，`tools/list` | 返回 4 个工具 |
 | C：上传闭环 | 网页选择文件 → 上传并向量化 | 结果区显示 HTTP 200 与 success，文档列表出现新文档 |
 | D：Agent 启动 | `python main.py --tui` | 界面显示工具数、技能数、MCP 服务器状态 |
 | D：工具调用闭环 | 输入「现在几点」「2024 年是闰年吗」 | 触发 `getDate` / `isLeapYear` 并回填结果 |
 | D：技能渐进加载 | 输入「用 code-review 技能审查 main.py」 | 先注入名称与描述，调用 `loadSkill` 后才读取正文 |
+| 场景闭环 | 输入「用 clinic-compliance 技能自查档案 p-001 的病历」 | 调 `get_pet_records` 取证 → 检索法规条文 → 输出带条款出处的问题清单 |
 
 ## 五、各模块文档
 

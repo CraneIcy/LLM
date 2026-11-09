@@ -5,8 +5,8 @@ Streamable HTTP transport. No FastMCP, no ``initialize``, no
 ``Mcp-Session-Id``, no session storage.
 
 The module exposes:
-    * ``mcp`` – the ``MCPServer`` instance with the ``list_pets`` tool
-      registered.
+    * ``mcp`` – the ``MCPServer`` instance with the ``list_pets`` and
+      ``get_pet_records`` tools registered.
     * ``rest_client`` – the ``PetHospitalRESTClient`` bound to the
       configured Go backend.
     * ``app`` – a Starlette ASGI application that mounts the MCP endpoint
@@ -27,7 +27,7 @@ from mcp.server import MCPServer
 from .config import Settings, load_settings
 from .logging_config import configure_logging, get_logger
 from .rest_client import PetHospitalRESTClient
-from .tools import list_pets
+from .tools import get_pet_records, list_pets
 
 # ---------------------------------------------------------------------------
 # Module-level singletons
@@ -39,8 +39,9 @@ configure_logging()
 mcp = MCPServer("pet-hospital-mcp")
 rest_client = PetHospitalRESTClient(settings)
 
-# Register the single tool for this phase.
+# Register the business tools: archive search + record self-inspection.
 list_pets.register(mcp, rest_client)
+get_pet_records.register(mcp, rest_client)
 
 
 # ---------------------------------------------------------------------------

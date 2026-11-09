@@ -20,7 +20,7 @@ CAgent/
 │   ├── tui/app.py              # 终端界面（Textual）
 │   └── cli/app.py              # 纯命令行界面
 ├── .agents/
-│   ├── skills/                 # 技能目录（code-review / translator / writing-assistant）
+│   ├── skills/                 # 技能目录（clinic-compliance / code-review / translator / writing-assistant）
 │   ├── sessions/               # 会话存档（JSONL）
 │   └── context/                # 上下文归档（JSONL）
 ├── AGENTS.md                   # 项目长期规则（启动时一次注入）
@@ -67,7 +67,7 @@ CAgent/
 3. **加载**：模型判断需要时调用 `loadSkill`，才读取正文；正文超长自动截断。
 4. **创建**：`createSkill` 校验名称格式（小写字母/数字/连字符），同名存在时直接拒绝，不覆盖。
 
-示例技能：`code-review`（代码审查）、`translator`（翻译）、`writing-assistant`（写作润色）。
+示例技能：`clinic-compliance`（动物诊疗机构合规自查，业务技能）、`code-review`（代码审查）、`translator`（翻译）、`writing-assistant`（写作润色）。
 
 ## 四、MCP 接入
 

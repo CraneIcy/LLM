@@ -159,6 +159,72 @@ Error codes:
 | `BACKEND_INVALID_RESPONSE` | Response body did not match expected schema |
 | `INTERNAL_ERROR` | Unexpected internal failure |
 
+### `get_pet_records`
+
+Wraps `GET /api/v1/pets/{id}/records` — return the medical-record timeline of
+one pet and run a **mechanical** completeness audit on it. Read-only.
+
+The audit exists for one downstream use: veterinary clinics must keep
+standardised records for at least three years (《动物诊疗机构管理办法》第二十二条),
+so the tool reports which statutory fields are empty instead of judging
+whether a diagnosis is clinically right.
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Constraints |
+|---|---|---|---|---|
+| `pet_id` | string | yes | — | 1–64 chars, taken from `list_pets` |
+| `limit` | int | no | `50` | 1–100 |
+| `offset` | int | no | `0` | ≥ 0, counted from the newest record |
+| `only_incomplete` | bool | no | `false` | Return only records that failed the audit |
+| `include_history_text` | bool | no | `false` | Also return the backend-rendered `historyText` |
+
+#### Successful response (`structured_content`)
+
+```json
+{
+  "pet_id": "p-001",
+  "pet_name": "旺财",
+  "owner_name": "张三",
+  "count": 3,
+  "offset": 0,
+  "limit": 50,
+  "returned": 3,
+  "records": [{ "id": "r-001", "visitDate": "2026-03-01", "doctor": "李医生",
+                "diagnosis": "上呼吸道感染", "treatment": "雾化 + 口服药物",
+                "prescription": ["阿莫西林"], "charge": 180.0 }],
+  "incomplete_records": [
+    { "id": "r-002", "visitDate": "2026-03-08", "doctor": "",
+      "missingFields": ["接诊医生", "处方"] }
+  ],
+  "missing_summary": {
+    "missing_doctor": 1, "missing_diagnosis": 0, "missing_treatment": 0,
+    "missing_prescription": 1, "zero_charge": 0
+  }
+}
+```
+
+#### Audit scope
+
+Checked fields (`missingFields` labels are Chinese because they are read by
+the agent when writing the compliance report):
+
+| Field | Label | Meaning |
+|---|---|---|
+| `visitDate` | 就诊日期 | Record without a visit date cannot prove the 3-year retention window |
+| `doctor` | 接诊医生 | No attending vet on record |
+| `diagnosis` | 诊断结论 | Missing diagnosis |
+| `treatment` | 处置方案 | Missing treatment plan |
+| `prescription` | 处方 | Missing prescription (第二十三条 requires a 兽医处方笺) |
+| `charge > 0` | 本次费用 | Zero charge usually means the visit was never settled |
+
+Not audited on purpose: whether the diagnosis is correct, whether the drug
+choice is appropriate, whether the price is fair — those need a licensed vet.
+
+Argument validation happens twice: the MCP SDK validates the JSON Schema first
+(a `limit=0` call is rejected before the handler runs), and the handler
+re-validates through a Pydantic model so direct invocation behaves the same.
+
 ## Project structure
 
 ```
@@ -176,9 +242,11 @@ pet-hospital-mcp/
 │       ├── server.py            # MCPServer + Streamable HTTP + /health
 │       └── tools/
 │           ├── __init__.py
-│           └── list_pets.py     # list_pets tool implementation
+│           ├── get_pet_records.py  # record timeline + field audit
+│           └── list_pets.py        # list_pets tool implementation
 └── tests/
     ├── conftest.py              # Fixtures + mock Go responses
+    ├── test_get_pet_records.py  # record audit / windowing / error mapping
     ├── test_input_validation.py # Pydantic model tests
     ├── test_logging.py          # Redaction + log entry tests
     ├── test_rest_client.py      # REST client error/retry tests

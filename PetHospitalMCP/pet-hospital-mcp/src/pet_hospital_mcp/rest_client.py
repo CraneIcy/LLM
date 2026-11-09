@@ -7,7 +7,8 @@ failures into the structured ErrorEnvelope used by tools.
 Design notes:
     * Stateless: each call builds its own request; no session cookies,
       no Mcp-Session-Id, no initialize handshake.
-    * Only the GET /api/v1/pets endpoint is supported in this phase.
+    * Supported endpoints: GET /api/v1/pets (list/search) and
+      GET /api/v1/pets/{id}/records (medical record timeline).
     * Transient failures (connect errors, read timeouts, 5xx) are retried
       with exponential backoff up to backend_max_retries.
     * 4xx responses are not retried; they surface as BACKEND_API_ERROR.
@@ -18,6 +19,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -71,6 +73,23 @@ class PetHospitalRESTClient:
         path = "/api/v1/pets"
 
         return await self._get_with_retry(path, query)
+
+    async def get_records(self, pet_id: str) -> dict[str, Any]:
+        """Call GET /api/v1/pets/{id}/records and return the `data` object.
+
+        The Go handler returns ``{petId, petName, ownerName, count,
+        records[], historyText}`` so callers can both audit individual
+        records and reuse the pre-rendered history text.
+
+        Raises:
+            PetHospitalError: On any upstream failure, timeout, or invalid
+                response.
+        """
+
+        safe_id = quote(str(pet_id), safe="")
+        path = f"/api/v1/pets/{safe_id}/records"
+
+        return await self._get_with_retry(path, {})
 
     async def _get_with_retry(
         self,
