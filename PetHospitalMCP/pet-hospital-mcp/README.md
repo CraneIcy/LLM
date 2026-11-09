@@ -323,5 +323,7 @@ curl http://127.0.0.1:8000/health
 
 ## Extending with new tools
 
-See `UPGRADE_PROMPT.md` for a step-by-step guide on adding new MCP tools that
-wrap additional Go REST API endpoints.
+`UPGRADE_PROMPT.md` is the **extension contract** (not a status report): it lists
+what is already implemented today (two tools, six error codes, 66 pytest cases)
+and the checklist for adding a new read-only tool that wraps another Go REST
+endpoint.

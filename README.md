@@ -9,7 +9,7 @@
 
 | 编号 | 部件 | 目录 | 技术栈 | 在本场景中的职责 |
 |---|---|---|---|---|
-| A | 宠物医院 MCP Server | `PetHospitalMCP/pet-hospital-mcp` | Python 3.11 + mcp 2.x SDK | 把 Go 版诊疗机构 REST API 封装成 MCP 工具：查档案、查病历并做字段自查 |
+| A | 宠物医院 MCP Server | `PetHospitalMCP/pet-hospital-mcp` | Python 3.11 + `mcp==2.0.0` SDK | 把 Go 版诊疗机构 REST API 封装成 MCP 工具：查档案、查病历并做字段自查 |
 | B | AnythingLLM MCP Server | `new-chat-1` | Python + mcp 2.x SDK + httpx | 把法规知识库（工作区/文档/检索问答）封装成 MCP 工具，供 Agent 引条文 |
 | C | AnythingLLM 文档上传网页 | `AnythingLLMSever` | 原生 HTML/CSS/JS | 让机构把新规、检查表、模板自己传进知识库 |
 | D | 定制 Agent | `Agent/CAgent` | Python + DeepSeek/OpenAI 兼容接口 | 编排上面三类能力，按自查清单出结论 |
@@ -26,13 +26,16 @@ LLM/
 │   └── CAgent/                 # 定制 Agent（期末主交付）
 │       ├── core/               # 业务层：config / llm_client / tool_registry / skill_loader
 │       │   │                   #        / mcp_client / context_manager / session_manager
-│       │   └── tools/          # 14 个本地工具 + MCP 工具适配器
+│       │   └── tools/          # 15 个基础工具（文件 10 / 时间 2 / 命令行 1 / 网页 2）
+│       │                       #   + 3 个高阶工具（loadSkill / createSkill / recallContext）
+│       │                       #   + MCP 工具适配器；其中 searchWeb 需配置 Key 才注册
 │       ├── ui/                 # 界面层：tui（Textual）/ gui（桌面窗口）/ cli
+│       ├── scripts/debug/      # MCP 集成期的 7 个一次性排查脚本（非测试用例）
 │       ├── .agents/skills/     # 技能目录（含 clinic-compliance 合规自查等 4 个技能）
 │       ├── AGENTS.md           # 项目长期规则（启动时一次注入，含业务边界与条款引用规则）
 │       └── main.py             # 入口：python main.py（默认 GUI，--tui 切终端）
 ├── PetHospitalMCP/
-│   ├── main.go                 # Go 后端入口（29 个 REST 接口，网页内嵌进二进制）
+│   ├── main.go                 # Go 后端入口（29 个接口：27 个 /api/v1 + /health + 网页入口）
 │   ├── internal/api|model|store# 路由、模型、单文件存储引擎
 │   └── pet-hospital-mcp/       # Python MCP Server（list_pets / get_pet_records 两个工具）
 ├── AnythingLLMSever/
@@ -116,6 +119,7 @@ python main.py                      # 默认桌面界面；python main.py --tui 
 | D：Agent 启动 | `python main.py --tui` | 界面显示工具数、技能数、MCP 服务器状态 |
 | D：工具调用闭环 | 输入「现在几点」「2024 年是闰年吗」 | 触发 `getDate` / `isLeapYear` 并回填结果 |
 | D：技能渐进加载 | 输入「用 code-review 技能审查 main.py」 | 先注入名称与描述，调用 `loadSkill` 后才读取正文 |
+| D：危险操作保护 | 输入「删除目录 X」 | 未带 `confirm=true` 时返回拦截提示、不产生任何删除；盘符根与系统目录直接拒绝 |
 | 场景闭环 | 输入「用 clinic-compliance 技能自查档案 p-001 的病历」 | 调 `get_pet_records` 取证 → 检索法规条文 → 输出带条款出处的问题清单 |
 
 ## 五、各模块文档

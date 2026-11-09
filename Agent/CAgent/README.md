@@ -14,7 +14,7 @@ CAgent/
 │   ├── mcp_client.py           # MCP 客户端：stdio / Streamable HTTP 两种传输
 │   ├── context_manager.py      # Token 用量、上下文归档、全文检索
 │   ├── session_manager.py      # 会话保存 / 列表 / 恢复 / 删除
-│   └── tools/                  # 14 个本地工具 + MCP 工具适配器
+│   └── tools/                  # 18 个内置工具（15 个基础 + 3 个高阶）+ MCP 工具适配器
 ├── ui/                         # 界面层（单向依赖 core）
 │   ├── gui/app.py              # 桌面窗口（Tkinter）
 │   ├── tui/app.py              # 终端界面（Textual）
@@ -37,20 +37,24 @@ CAgent/
 
 ## 二、内置工具
 
+共 18 个：15 个基础工具（文件 10 / 时间 2 / 命令行 1 / 网页 2）+ 3 个高阶工具
+（`loadSkill` / `createSkill` / `recallContext`）。其中 `searchWeb` 需在 `.config.ini`
+配置检索 Key 后才会注册，未配置时工具清单里没有它。
+
 | 工具 | 功能 | 关键实现 |
 |---|---|---|
 | `getDate` | 读取本机日期时间（含星期与时区） | `datetime.now().astimezone()`，跨平台、非硬编码 |
 | `isLeapYear` | 闰年判断 | `(y%4==0 and y%100!=0) or y%400==0` |
 | `getCwd` | 获取当前工作目录 | `os.getcwd()` |
-| `listDir` | 列出目录项（区分文件夹/文件并给大小） | `os.listdir()` |
+| `listDir` | 列出目录项（区分文件夹/文件并给大小） | `os.listdir()`，目录不存在时明确报错 |
 | `getFileType` | 判断文件/目录/不存在，返回扩展名 | `os.path.isdir/isfile` |
-| `readFile` | 读取文本文件 | `open(..., encoding="utf-8")` |
-| `createFile` | 创建文件（可带初始内容） | `open(path, "w")` |
-| `writeFile` | 覆盖写入 | `open(path, "w")` |
-| `makeDir` | 创建目录（支持多级） | `os.makedirs(exist_ok=True)` |
-| `removeDir` | 删除目录及其内容 | `shutil.rmtree` |
-| `removeFile` | 删除文件 | `os.remove` |
-| `rename` | 重命名/移动文件或目录 | `os.rename` |
+| `readFile` | 读取文本文件 | `open(..., encoding="utf-8")`，先校验存在性 |
+| `createFile` | 创建文件（可带初始内容）；同名文件会被覆盖，返回里注明原大小 | `open(path, "w")` |
+| `writeFile` | 覆盖写入 | `open(path, "w")`，返回覆盖/新建与字节数 |
+| `makeDir` | 创建目录（支持多级） | `os.makedirs(exist_ok=True)`，已存在时不动 |
+| `removeDir` | 删除目录及其内容 | `shutil.rmtree`，**必须 `confirm=true`**；拒绝盘符根/系统目录/项目根 |
+| `removeFile` | 删除文件 | `os.remove`，**必须 `confirm=true`** |
+| `rename` | 重命名/移动文件或目录 | `os.rename`，目标已存在时需 `confirm=true` |
 | `RunCli` | 执行本地命令行程序 | `subprocess.run(timeout=15, shell=False)`，输出截断 2000 字符 |
 | `fetchWeb` | 读取静态网页正文 | `requests` + 去标签转纯文本，默认截断 4000 字符 |
 | `searchWeb` | 互联网检索（配置 Key 后启用） | 百度千帆 AI Search，返回标题/摘要/链接 |
@@ -119,6 +123,16 @@ TUI 快捷键：`Ctrl+C` 退出、`Ctrl+R` 清空对话。
 ## 七、安全边界
 
 - 密钥只来自 `.config.ini`（不入库），不写死在代码里；缺少配置时给出明确提示并启用 mock 模板。
+- 文件工具统一先做参数校验（空路径、目录/文件类型不符、上级目录不存在都直接报错，不抛裸异常）。
+- 删除目录、删除文件、覆盖式重命名属于不可逆操作，必须显式传 `confirm=true`，否则只返回拦截说明、不产生副作用；盘符根、`C:\Windows` 等系统关键目录与当前项目根一律拒绝。
 - `RunCli` 使用 `shell=False` + 15 秒超时，避免命令注入与卡死；输出自动截断。
 - `loadSkill` 的附加文件读取限定在技能目录内，阻止路径穿越。
 - 单轮对话最多允许 8 轮工具调用（`[agent] max_tool_steps`），防止模型死循环。
+
+## 八、自测脚本
+
+根目录的 `test_*.py`（`test_startup` / `test_tui_smoke` / `test_gui_smoke` /
+`test_e2e_real` / `test_compact_integration` / `test_context_manager` /
+`test_new_features`）是**手动运行的自测脚本**（`python test_xxx.py`），不是 pytest 用例，
+共约 34 处 `assert`；MCP 集成期的一次性排查脚本已归档到 `scripts/debug/`，
+不参与任何测试收集。
