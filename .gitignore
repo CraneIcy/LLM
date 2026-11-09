@@ -1,0 +1,51 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== 环境变量 / 密钥 =====
+.env
+.env.*
+!.env.example
+
+# ===== 构建产物 =====
+*.exe
+*.db
+*.db.tmp
+*.test
+*.out
+dist/
+build/
+
+# ===== IDE / 编辑器 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 本地配置与密钥（补充） =====
+.config.ini
+
+# ===== 课程项目排除项 =====
+fix/
+.nested-git/
+AnythingLLMSever/_backup/
+Agent/Practice2/LLM/
+Agent/CAgent/.agents/context/
+Agent/CAgent/.agents/sessions/
+Agent/CAgent/installer_output/
+Agent/CAgent/vendor/
+*.log
